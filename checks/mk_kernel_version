@@ -1,0 +1,45 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+
+# License: GNU General Public License v2
+# Plugin : mk_kernel_version
+# Version: 0.1.0
+
+# check running and (last) installed kernel versions
+# if != return WARNING
+
+# needs plugin installed on clients
+
+# the inventory function (dummy)
+def inventory_mk_kernel_version(info):
+   k_info = info[0]
+   k_name = k_info[0]
+   yield k_name, None
+
+def check_mk_kernel_version(item, params, info):
+
+   # get kernel infos from 1. line of client data
+   # example line for FreeBSD:
+   # FreeBSD 13.1-RELEASE-p1 13.1-RELEASE-p2
+   k_info = info[0]
+   k_name = k_info[0]
+   k_run  = k_info[1]
+   k_inst = k_info[2]
+
+   # info string displayed in icinga
+   info_warn = "Kernel version running %s != installed version %s. System needs reboot!" % (k_run, k_inst)
+   info_ok = "Kernel version running %s match installed version" % (k_run)
+
+   # return status code
+   if k_run != k_inst:
+      return 1, info_warn
+   else:
+      return 0, info_ok
+
+
+check_info["mk_kernel_version"] = {
+   'check_function':            check_mk_kernel_version,
+   'inventory_function':        inventory_mk_kernel_version,
+   'service_description':       'Kernel Version',
+   'has_perfdata':              False,
+}

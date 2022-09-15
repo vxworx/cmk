@@ -1,0 +1,75 @@
+#!/bin/sh
+
+# --------------------------------------------------------------------
+# License: GNU General Public License v2
+# Plugin : mk_kernel_version
+# Version: 0.1.0
+# --------------------------------------------------------------------
+
+# Reason for this no-op: shellcheck disable=... before the first command disables the error for the
+# entire script.
+:
+
+# Disable unused variable error (needed to keep track of version)
+# shellcheck disable=SC2034
+CMK_VERSION="2.1.0p11"
+
+# This plugin provides info about running and (last) installed kernel versions.
+K_NAME=''
+K_RUN=''
+K_INST=''
+
+# --------------------------------------------------------------------
+# FreeBSD
+# --------------------------------------------------------------------
+
+if [ "$(uname -s)" = 'FreeBSD' ]; then
+    K_NAME='FreeBSD'
+    K_RUN=$(sysctl -n kern.osrelease)
+    K_INST=$(freebsd-version -k)
+fi
+
+# --------------------------------------------------------------------
+# Debian/Ubuntu/Proxmox
+# --------------------------------------------------------------------
+# Different kernel versions may be installed, so we need to compare.
+# All available versions to find the latest.
+
+    # Proxmox PVE kernel package uses different naming convention.
+    # Default Linux kernel package prefix.
+    case "$(uname -r)" in
+        *-pve)  image_prefix='pve-kernel';;
+        *)      image_prefix='linux-image';;
+    esac
+
+current_kernel () {
+    # Get the version of the currently running kernel
+    current=$(dpkg -l | grep ${image_prefix}-$(uname -r) | awk '{print $3}')
+    echo "${current}"
+}
+
+latest_kernel () {
+    # Get the version of the currently running kernel
+    latest=$(dpkg -l | grep ${image_prefix}-$(uname -r) | awk '{print $3}')
+
+    for i in $(dpkg -l | grep ${image_prefix}-$(uname -r | cut -d '.' -f1) | awk '{print $3}')
+    do
+        dpkg --compare-versions "${i}" gt "${latest}" && latest="${i}"
+    done
+    echo "${latest}"
+}
+
+if [ "$(uname -o)" = 'GNU/Linux' ]; then
+    K_NAME='Linux'
+    K_RUN=$(current_kernel)
+    K_INST=$(latest_kernel)
+fi
+
+# --------------------------------------------------------------------
+# Write plugin output if available
+# --------------------------------------------------------------------
+
+if [ -n "${K_RUN}" ]; then
+    echo '<<<mk_kernel_version>>>'
+    echo "${K_NAME} ${K_RUN} ${K_INST}"
+fi
